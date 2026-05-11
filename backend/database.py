@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import os
 from dotenv import load_dotenv
 
@@ -31,6 +31,17 @@ class Produk(Base):
     nama_produk = Column(String(255), index=True)
     harga = Column(Integer)
     stok = Column(Integer)
+    
+    transaksi = relationship("Transaksi", back_populates="produk")
+
+class Transaksi(Base):
+    __tablename__ = "transaksi"
+    id = Column(Integer, primary_key=True, index=True)
+    produk_id = Column(Integer, ForeignKey("produk.id"))
+    jumlah = Column(Integer)
+    total_harga = Column(Integer)
+    
+    produk = relationship("Produk", back_populates="transaksi")
 
 
 
