@@ -1,9 +1,10 @@
-from database import SessionLocal
+from backend.database import SessionLocal
 from sqlalchemy import text
 
 db = SessionLocal()
 try:
-    db.execute(text("ALTER TABLE produk ADD COLUMN kategori VARCHAR(100) DEFAULT 'Umum'"))
+    db.execute(
+        text("ALTER TABLE produk ADD COLUMN kategori VARCHAR(100) DEFAULT 'Umum'"))
     db.commit()
     print("kategori column added")
 except Exception as e:

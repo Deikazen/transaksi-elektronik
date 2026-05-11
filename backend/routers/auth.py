@@ -7,16 +7,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, field_validator
 from jose import JWTError
 
-from database import get_db
-from models import User, RoleEnum
-from core.security import (
+from backend.database import get_db
+from backend.models import User, RoleEnum
+from backend.core.security import (
     hash_password,
     verify_password,
     create_access_token,
     create_refresh_token,
     decode_token,
 )
-from core.deps import get_current_user
+from backend.core.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

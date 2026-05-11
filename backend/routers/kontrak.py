@@ -10,9 +10,9 @@ from datetime import datetime
 import hashlib
 import os
 
-from database import get_db
-from models import Kontrak, Transaksi, User
-from core.deps import get_current_user
+from backend.database import get_db
+from backend.models import Kontrak, Transaksi, User
+from backend.core.deps import get_current_user
 
 router = APIRouter(prefix="/kontrak", tags=["Kontrak"])
 
@@ -212,7 +212,7 @@ def generate_contract_pdf_manual(
     if not transaksi:
         raise HTTPException(status_code=404, detail="Transaksi terkait tidak ditemukan.")
 
-    from models import User as UserModel, ItemTransaksi
+    from backend.models import User as UserModel, ItemTransaksi
     kasir = db.query(UserModel).filter(UserModel.id == transaksi.kasir_id).first()
     kasir_name = kasir.username if kasir else "Unknown"
     items = db.query(ItemTransaksi).filter(ItemTransaksi.transaksi_id == transaksi.id).all()
@@ -264,7 +264,7 @@ def generate_pdf_for_transaction(
     if existing:
         raise HTTPException(status_code=409, detail=f"Kontrak sudah ada: {existing.kode}. Gunakan endpoint generate-pdf untuk regenerate.")
 
-    from models import User as UserModel, ItemTransaksi
+    from backend.models import User as UserModel, ItemTransaksi
     kasir = db.query(UserModel).filter(UserModel.id == transaksi.kasir_id).first()
     kasir_name = kasir.username if kasir else "Unknown"
     items = db.query(ItemTransaksi).filter(ItemTransaksi.transaksi_id == transaksi_id).all()

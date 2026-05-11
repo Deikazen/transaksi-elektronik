@@ -19,9 +19,9 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import logging
 
-from database import get_db
-from models import Transaksi, ItemTransaksi, Produk, User, Kontrak, IOLog
-from core.deps import get_current_user
+from backend.database import get_db
+from backend.models import Transaksi, ItemTransaksi, Produk, User, Kontrak, IOLog
+from backend.core.deps import get_current_user
 
 router = APIRouter(prefix="/io", tags=["I/O System"])
 logger = logging.getLogger(__name__)

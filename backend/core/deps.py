@@ -8,20 +8,23 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import JWTError
 
-from database import get_db
-from models import User, RoleEnum
-from core.security import decode_token
+from backend.database import get_db
+from backend.models import User, RoleEnum
+from backend.core.security import decode_token
 
 # Skema bearer token (baca dari header Authorization: Bearer <token>)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 # ── Ambil user dari token ─────────────────────────────────────
+
+
 def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    token = credentials.credentials if credentials else request.query_params.get("token")
+    token = credentials.credentials if credentials else request.query_params.get(
+        "token")
     exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token tidak valid atau sudah kadaluarsa.",
@@ -29,7 +32,7 @@ def get_current_user(
     )
     if not token:
         raise exc
-    
+
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
@@ -46,6 +49,8 @@ def get_current_user(
     return user
 
 # ── Cek role (RBAC) ──────────────────────────────────────────
+
+
 def require_role(*roles: RoleEnum):
     """
     Pake begini di endpoint:
@@ -61,8 +66,9 @@ def require_role(*roles: RoleEnum):
         return current_user
     return checker
 
+
 # Shortcut dependencies yang sering dipake
-require_admin   = require_role(RoleEnum.admin)
-require_kasir   = require_role(RoleEnum.admin, RoleEnum.kasir)
+require_admin = require_role(RoleEnum.admin)
+require_kasir = require_role(RoleEnum.admin, RoleEnum.kasir)
 require_manajer = require_role(RoleEnum.admin, RoleEnum.manajer)
-require_any     = require_role(RoleEnum.admin, RoleEnum.kasir, RoleEnum.manajer)
+require_any = require_role(RoleEnum.admin, RoleEnum.kasir, RoleEnum.manajer)

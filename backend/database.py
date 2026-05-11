@@ -1,4 +1,6 @@
 from sqlalchemy import create_engine
+# Tambahkan tipe data lain jika perlu
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 from dotenv import load_dotenv
@@ -16,7 +18,6 @@ Base = declarative_base()
 
 def init_db():
     # Import semua model dulu sebelum create_all dipanggil
-    import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
 
@@ -28,15 +29,22 @@ def get_db():
         db.close()
 
 
-# tabel database
-class Produk(Base):
-    __tablename__ = "produk"
-    id = Column(Integer, primary_key=True, index=True)
-    nama_produk = Column(String(255), index=True)
-    harga = Column(Integer)
-    stok = Column(Integer)
-
-
 if __name__ == "__main__":
-    init_db()
-    print("Database & semua tabel berhasil dibuat!")
+    import models
+
+    print("Mendaftarkan tabel secara eksplisit...")
+
+    # Cara paksa: Ambil metadata langsung dari objek yang ada di models
+    target_metadata = models.Base.metadata
+
+    print(
+        f"Tabel terdaftar di Metadata Models: {target_metadata.tables.keys()}")
+
+    # Jalankan create_all menggunakan metadata dari models
+    target_metadata.create_all(bind=engine)
+
+    # Verifikasi fisik ke MySQL (Pastikan Laragon SUDAH START)
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    print(
+        f"Tabel fisik di MySQL ({engine.url.database}): {inspector.get_table_names()}")

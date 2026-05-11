@@ -71,6 +71,7 @@ reportlab==4.2.5
 
 # Computer Vision (untuk deteksi uang palsu)
 opencv-python==4.10.0.84
+numpy
 
 # HTTP Client (untuk Midtrans API)
 httpx==0.28.1

@@ -1,72 +1,4 @@
-<<<<<<< HEAD
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
-from database import get_db, Transaksi, Produk
 
-router = APIRouter(prefix="/transaction", tags=["Transaction"])
-
-class TransaksiCreate(BaseModel):
-    produk_id: int
-    jumlah: int
-
-class TransaksiUpdate(BaseModel):
-    jumlah: Optional[int] = None
-
-@router.get("/")
-def get_transactions(db: Session = Depends(get_db)):
-    transactions = db.query(Transaksi).all()
-    return {"status": "success", "data": transactions}
-
-@router.get("/{transaction_id}")
-def get_transaction_by_id(transaction_id: int, db: Session = Depends(get_db)):
-    transaction = db.query(Transaksi).filter(Transaksi.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
-    return {"status": "success", "data": transaction}
-
-@router.post('/')
-def create_transaction(transaction: TransaksiCreate, db: Session = Depends(get_db)):
-    produk = db.query(Produk).filter(Produk.id == transaction.produk_id).first()
-    if not produk:
-        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
-        
-    if produk.stok < transaction.jumlah:
-        raise HTTPException(status_code=400, detail="Stok produk tidak mencukupi")
-        
-    total_harga = produk.harga * transaction.jumlah
-    
-    # Kurangi stok
-    produk.stok -= transaction.jumlah
-    
-    new_transaction = Transaksi(
-        produk_id=transaction.produk_id,
-        jumlah=transaction.jumlah,
-        total_harga=total_harga
-    )
-
-    db.add(new_transaction)
-    db.commit()
-    db.refresh(new_transaction)
-
-    return {"status": "success", "data": new_transaction}
-
-@router.delete("/{transaction_id}")
-def delete_transaction(transaction_id: int, db: Session = Depends(get_db)):
-    transaction = db.query(Transaksi).filter(Transaksi.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
-        
-    # Opsional: Kembalikan stok produk jika transaksi dihapus
-    produk = db.query(Produk).filter(Produk.id == transaction.produk_id).first()
-    if produk:
-        produk.stok += transaction.jumlah
-        
-    db.delete(transaction)
-    db.commit()
-    return {"status": "success", "message": "Transaksi berhasil dihapus"}
-=======
 """
 routers/transaction.py
 Endpoint transaksi POS — SecureTransact (IFB-352, Grup C10 ITENAS)
@@ -80,7 +12,8 @@ Changelog vs versi sebelumnya:
   - CHANGED: TransaksiResponse schema ditambah ppn & grand_total
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks  # ← CHANGED: tambah BackgroundTasks
+# ← CHANGED: tambah BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
@@ -89,18 +22,21 @@ import hashlib  # ← NEW: untuk SHA-256 hash PDF
 import io       # ← NEW: untuk BytesIO buffer PDF
 import logging  # ← NEW: logging untuk background task
 
-from database import get_db, SessionLocal
-from models import Transaksi, ItemTransaksi, Produk, User, Kontrak, IOLog
-from core.deps import get_current_user, require_kasir
+from backend.database import get_db, SessionLocal
+from backend.models import Transaksi, ItemTransaksi, Produk, User, Kontrak, IOLog
+from backend.core.deps import get_current_user, require_kasir
 import os
 
 router = APIRouter(prefix="/transaction", tags=["Transaction"])
 logger = logging.getLogger(__name__)  # ← NEW
 
 # ── Schema ────────────────────────────────────────────────
+
+
 class ItemTransaksiCreate(BaseModel):
     produk_id: int
     qty: int
+
 
 class TransaksiCreate(BaseModel):
     nama_klien: str
@@ -108,6 +44,7 @@ class TransaksiCreate(BaseModel):
     jumlah_bayar: int = 0
     diskon_persen: int = 0       # diskon 0-100%
     items: List[ItemTransaksiCreate]
+
 
 class ItemTransaksiResponse(BaseModel):
     id: int
@@ -118,6 +55,7 @@ class ItemTransaksiResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class TransaksiResponse(BaseModel):
     id: int
@@ -140,6 +78,8 @@ class TransaksiResponse(BaseModel):
         from_attributes = True
 
 # ── Receipt detail response (untuk endpoint /receipt) ─────  # ← NEW
+
+
 class KontrakInfo(BaseModel):
     id: int
     kode: str
@@ -149,6 +89,7 @@ class KontrakInfo(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ReceiptResponse(BaseModel):  # ← NEW
     transaksi: TransaksiResponse
     kontrak: Optional[KontrakInfo] = None
@@ -157,6 +98,8 @@ class ReceiptResponse(BaseModel):  # ← NEW
 # ══════════════════════════════════════════════════════════
 #  Background task: Generate PDF struk & simpan Kontrak
 # ══════════════════════════════════════════════════════════
+
+
 def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = None) -> bytes:
     """
     Helper: build professional contract PDF bytes using ReportLab.
@@ -185,7 +128,8 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     c.drawString(margin_l, H - 18 * mm, "SecureTransact")
     c.setFont("Helvetica", 9)
     c.setFillColorRGB(0.6, 0.7, 0.9)
-    c.drawString(margin_l, H - 25 * mm, "Sistem Transaksi Elektronik Terverifikasi  |  IFB-352 Grup C10 ITENAS")
+    c.drawString(margin_l, H - 25 * mm,
+                 "Sistem Transaksi Elektronik Terverifikasi  |  IFB-352 Grup C10 ITENAS")
 
     # KONTRAK DIGITAL label (top-right)
     c.setFillColorRGB(0.38, 0.68, 1.0)
@@ -200,11 +144,12 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
 
     # ── Info block ──────────────────────────────────────────
     c.setFillColorRGB(0.13, 0.15, 0.25)
-    c.roundRect(margin_l, y - 28 * mm, W - 40 * mm, 28 * mm, 3 * mm, fill=1, stroke=0)
+    c.roundRect(margin_l, y - 28 * mm, W - 40 * mm,
+                28 * mm, 3 * mm, fill=1, stroke=0)
 
     info_x1 = margin_l + 5 * mm
     info_x2 = W / 2 + 5 * mm
-    info_y  = y - 7 * mm
+    info_y = y - 7 * mm
 
     c.setFillColorRGB(0.5, 0.6, 0.8)
     c.setFont("Helvetica", 8)
@@ -214,7 +159,8 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     c.setFillColorRGB(1, 1, 1)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(info_x1, info_y, transaksi.kode)
-    ts = transaksi.created_at.strftime("%d %B %Y, %H:%M WIB") if transaksi.created_at else "-"
+    ts = transaksi.created_at.strftime(
+        "%d %B %Y, %H:%M WIB") if transaksi.created_at else "-"
     c.drawString(info_x2, info_y, ts)
 
     info_y -= 8 * mm
@@ -240,9 +186,9 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     y -= 8 * mm
 
     # Table header
-    col_produk  = margin_l
-    col_qty     = margin_l + 90 * mm
-    col_harga   = margin_l + 110 * mm
+    col_produk = margin_l
+    col_qty = margin_l + 90 * mm
+    col_harga = margin_l + 110 * mm
     col_subtotal = margin_r - 25 * mm
 
     c.setFillColorRGB(0.07, 0.09, 0.18)
@@ -266,10 +212,13 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
             c.rect(margin_l, y - 4 * mm, W - 40 * mm, 6 * mm, fill=1, stroke=0)
         c.setFillColorRGB(0.1, 0.1, 0.2)
         c.setFont("Helvetica", 9)
-        c.drawString(col_produk + 2 * mm, y - 0.5 * mm, str(item.nama_produk)[:38])
+        c.drawString(col_produk + 2 * mm, y - 0.5 *
+                     mm, str(item.nama_produk)[:38])
         c.drawString(col_qty,             y - 0.5 * mm, str(item.qty))
-        c.drawString(col_harga,           y - 0.5 * mm, f"Rp {item.harga:,}".replace(",", "."))
-        c.drawString(col_subtotal,        y - 0.5 * mm, f"Rp {item_sub:,}".replace(",", "."))
+        c.drawString(col_harga,           y - 0.5 * mm,
+                     f"Rp {item.harga:,}".replace(",", "."))
+        c.drawString(col_subtotal,        y - 0.5 * mm,
+                     f"Rp {item_sub:,}".replace(",", "."))
         y -= 6 * mm
 
     y -= 3 * mm
@@ -279,47 +228,56 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     y -= 6 * mm
 
     # ── Totals ──────────────────────────────────────────────
-    diskon_nominal = transaksi.diskon_nominal if hasattr(transaksi, 'diskon_nominal') and transaksi.diskon_nominal else 0
-    diskon_persen  = transaksi.diskon_persen if hasattr(transaksi, 'diskon_persen') and transaksi.diskon_persen else 0
+    diskon_nominal = transaksi.diskon_nominal if hasattr(
+        transaksi, 'diskon_nominal') and transaksi.diskon_nominal else 0
+    diskon_persen = transaksi.diskon_persen if hasattr(
+        transaksi, 'diskon_persen') and transaksi.diskon_persen else 0
     setelah_diskon = subtotal_all - diskon_nominal
-    ppn         = transaksi.ppn if transaksi.ppn else round(setelah_diskon * 0.11)
-    grand_total = transaksi.grand_total if transaksi.grand_total else (setelah_diskon + ppn)
+    ppn = transaksi.ppn if transaksi.ppn else round(setelah_diskon * 0.11)
+    grand_total = transaksi.grand_total if transaksi.grand_total else (
+        setelah_diskon + ppn)
 
     def draw_sum_row(label, amount, bold=False, highlight=False, color_green=False):
         nonlocal y
         if highlight:
             c.setFillColorRGB(0.07, 0.09, 0.18)
-            c.rect(col_harga - 2 * mm, y - 4 * mm, margin_r - col_harga + 2 * mm, 7 * mm, fill=1, stroke=0)
+            c.rect(col_harga - 2 * mm, y - 4 * mm, margin_r -
+                   col_harga + 2 * mm, 7 * mm, fill=1, stroke=0)
             c.setFillColorRGB(0.38, 0.68, 1.0)
         elif color_green:
             c.setFillColorRGB(0.06, 0.72, 0.5)
         else:
             c.setFillColorRGB(0.2, 0.2, 0.35)
         fnt = "Helvetica-Bold" if (bold or highlight) else "Helvetica"
-        sz  = 10 if highlight else 9
+        sz = 10 if highlight else 9
         c.setFont(fnt, sz)
         c.drawRightString(col_subtotal - 5 * mm, y - 0.5 * mm, label)
         prefix = "-" if color_green else ""
-        c.drawString(col_subtotal, y - 0.5 * mm, f"{prefix}Rp {abs(amount):,}".replace(",", "."))
+        c.drawString(col_subtotal, y - 0.5 * mm,
+                     f"{prefix}Rp {abs(amount):,}".replace(",", "."))
         y -= 7 * mm
 
     draw_sum_row("Subtotal",  subtotal_all)
     if diskon_nominal > 0:
-        draw_sum_row(f"Diskon ({diskon_persen}%)", diskon_nominal, color_green=True)
+        draw_sum_row(f"Diskon ({diskon_persen}%)",
+                     diskon_nominal, color_green=True)
     draw_sum_row("PPN 11%",   ppn)
     draw_sum_row("TOTAL PEMBAYARAN", grand_total, bold=True, highlight=True)
-    
+
     y -= 3 * mm
     c.setFont("Helvetica", 9)
     c.setFillColorRGB(0.3, 0.3, 0.4)
-    c.drawRightString(col_subtotal - 5 * mm, y, f"Metode Pembayaran: {transaksi.metode_pembayaran.upper()}")
+    c.drawRightString(col_subtotal - 5 * mm, y,
+                      f"Metode Pembayaran: {transaksi.metode_pembayaran.upper()}")
     y -= 5 * mm
     if transaksi.metode_pembayaran == "tunai":
         c.drawRightString(col_subtotal - 5 * mm, y, "Jumlah Bayar:")
-        c.drawString(col_subtotal, y, f"Rp {transaksi.jumlah_bayar:,}".replace(",", "."))
+        c.drawString(col_subtotal, y,
+                     f"Rp {transaksi.jumlah_bayar:,}".replace(",", "."))
         y -= 5 * mm
         c.drawRightString(col_subtotal - 5 * mm, y, "Kembalian:")
-        c.drawString(col_subtotal, y, f"Rp {transaksi.kembalian:,}".replace(",", "."))
+        c.drawString(col_subtotal, y,
+                     f"Rp {transaksi.kembalian:,}".replace(",", "."))
         y -= 5 * mm
     y -= 5 * mm
 
@@ -333,12 +291,15 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     y -= 10 * mm
 
     c.setFillColorRGB(0.93, 0.95, 1.0)
-    c.roundRect(margin_l, y - 18 * mm, W - 40 * mm, 18 * mm, 3 * mm, fill=1, stroke=0)
+    c.roundRect(margin_l, y - 18 * mm, W - 40 * mm,
+                18 * mm, 3 * mm, fill=1, stroke=0)
     c.setFillColorRGB(0.4, 0.5, 0.7)
     c.setFont("Helvetica", 7.5)
     c.drawString(margin_l + 4 * mm, y - 5 * mm, "Algoritma  : SHA-256")
-    c.drawString(margin_l + 4 * mm, y - 10 * mm, "Hash SHA-256 dokumen ini akan dihitung dan disimpan di database setelah PDF digenerate.")
-    c.drawString(margin_l + 4 * mm, y - 15 * mm, "Hash dapat diverifikasi kapan saja melalui dashboard SecureTransact untuk membuktikan keaslian dokumen.")
+    c.drawString(margin_l + 4 * mm, y - 10 * mm,
+                 "Hash SHA-256 dokumen ini akan dihitung dan disimpan di database setelah PDF digenerate.")
+    c.drawString(margin_l + 4 * mm, y - 15 * mm,
+                 "Hash dapat diverifikasi kapan saja melalui dashboard SecureTransact untuk membuktikan keaslian dokumen.")
     y -= 24 * mm
 
     # ── Section: Syarat & Ketentuan ─────────────────────────
@@ -400,8 +361,10 @@ def _build_contract_pdf(transaksi, kasir_name: str, items, kontrak_kode: str = N
     c.rect(0, 0, W, 14 * mm, fill=1, stroke=0)
     c.setFillColorRGB(0.5, 0.6, 0.8)
     c.setFont("Helvetica", 7.5)
-    c.drawCentredString(W / 2, 9 * mm, "Dokumen ini digenerate secara otomatis oleh sistem SecureTransact dan sah tanpa tanda tangan basah.")
-    c.drawCentredString(W / 2, 5 * mm, f"SecureTransact  |  IFB-352 Grup C10 ITENAS  |  {transaksi.kode}")
+    c.drawCentredString(
+        W / 2, 9 * mm, "Dokumen ini digenerate secara otomatis oleh sistem SecureTransact dan sah tanpa tanda tangan basah.")
+    c.drawCentredString(
+        W / 2, 5 * mm, f"SecureTransact  |  IFB-352 Grup C10 ITENAS  |  {transaksi.kode}")
 
     c.save()
     return buf.getvalue()
@@ -416,14 +379,16 @@ def generate_pdf_receipt(transaksi_id: int):
     """
     db = SessionLocal()
     try:
-        transaksi = db.query(Transaksi).filter(Transaksi.id == transaksi_id).first()
+        transaksi = db.query(Transaksi).filter(
+            Transaksi.id == transaksi_id).first()
         if not transaksi:
             logger.error(f"[PDF] Transaksi ID {transaksi_id} tidak ditemukan.")
             return
 
         kasir = db.query(User).filter(User.id == transaksi.kasir_id).first()
         kasir_name = kasir.username if kasir else "Unknown"
-        items = db.query(ItemTransaksi).filter(ItemTransaksi.transaksi_id == transaksi_id).all()
+        items = db.query(ItemTransaksi).filter(
+            ItemTransaksi.transaksi_id == transaksi_id).all()
 
         # LOG: Start PDF generation (PROCESS)
         log_pdf_start = IOLog(
@@ -435,9 +400,11 @@ def generate_pdf_receipt(transaksi_id: int):
         db.flush()
 
         # Cek kontrak sudah ada
-        existing = db.query(Kontrak).filter(Kontrak.transaksi_id == transaksi_id).first()
+        existing = db.query(Kontrak).filter(
+            Kontrak.transaksi_id == transaksi_id).first()
         if existing:
-            logger.info(f"[PDF] Kontrak sudah ada untuk TRX ID {transaksi_id}, skip.")
+            logger.info(
+                f"[PDF] Kontrak sudah ada untuk TRX ID {transaksi_id}, skip.")
             return
 
         # Buat placeholder dulu supaya dapat kode
@@ -452,12 +419,14 @@ def generate_pdf_receipt(transaksi_id: int):
         kontrak.kode = f"KTR{kontrak.id:03d}"
 
         # Generate PDF dengan kode kontrak sudah diketahui
-        pdf_bytes = _build_contract_pdf(transaksi, kasir_name, items, kontrak.kode)
-        hash_doc  = hashlib.sha256(pdf_bytes).hexdigest()
+        pdf_bytes = _build_contract_pdf(
+            transaksi, kasir_name, items, kontrak.kode)
+        hash_doc = hashlib.sha256(pdf_bytes).hexdigest()
         kontrak.hash_doc = hash_doc
 
         # Simpan file PDF ke disk
-        pdf_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "contracts")
+        pdf_dir = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "..", "data", "contracts")
         os.makedirs(pdf_dir, exist_ok=True)
         pdf_path = os.path.join(pdf_dir, f"{kontrak.kode}.pdf")
         with open(pdf_path, "wb") as f:
@@ -472,30 +441,37 @@ def generate_pdf_receipt(transaksi_id: int):
         db.add(log_pdf_ok)
 
         db.commit()
-        logger.info(f"[PDF] Kontrak {kontrak.kode} berhasil untuk {transaksi.kode} (hash: {hash_doc[:16]}...)")
+        logger.info(
+            f"[PDF] Kontrak {kontrak.kode} berhasil untuk {transaksi.kode} (hash: {hash_doc[:16]}...)")
 
     except Exception as e:
         db.rollback()
-        logger.error(f"[PDF] Gagal generate PDF untuk TRX ID {transaksi_id}: {e}")
+        logger.error(
+            f"[PDF] Gagal generate PDF untuk TRX ID {transaksi_id}: {e}")
     finally:
         db.close()
 
 # ── Endpoints ─────────────────────────────────────────────
+
+
 @router.get("/")
 def get_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    transactions = db.query(Transaksi).order_by(Transaksi.created_at.desc()).all()
+    transactions = db.query(Transaksi).order_by(
+        Transaksi.created_at.desc()).all()
     return {
         "status": "success",
         "data": [TransaksiResponse.model_validate(t) for t in transactions]
     }
 
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_transaction(
     payload: TransaksiCreate,
-    background_tasks: BackgroundTasks,            # ← NEW: BackgroundTasks parameter
+    # ← NEW: BackgroundTasks parameter
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_kasir)
 ):
@@ -522,7 +498,8 @@ def create_transaction(
 
         # Verifikasi stok dan hitung total
         for item in payload.items:
-            produk = db.query(Produk).filter(Produk.id == item.produk_id).first()
+            produk = db.query(Produk).filter(
+                Produk.id == item.produk_id).first()
             if not produk:
                 raise HTTPException(
                     status_code=404,
@@ -562,7 +539,8 @@ def create_transaction(
         kembalian = 0
         if payload.metode_pembayaran == "tunai":
             if payload.jumlah_bayar < grand_total:
-                raise HTTPException(status_code=400, detail="Jumlah uang tunai kurang dari total pembayaran.")
+                raise HTTPException(
+                    status_code=400, detail="Jumlah uang tunai kurang dari total pembayaran.")
             kembalian = payload.jumlah_bayar - grand_total
         else:
             payload.jumlah_bayar = grand_total
@@ -588,7 +566,7 @@ def create_transaction(
 
         # ── CHANGED: Generate kode transaksi setelah flush (fix race condition) ──
         transaksi.kode = f"TRX{transaksi.id:03d}"
-        
+
         # Link log input ke kode transaksi yang baru didapat
         log_input.transaction_kode = transaksi.kode
         log_val.transaction_kode = transaksi.kode
@@ -638,15 +616,18 @@ def create_transaction(
         "data": TransaksiResponse.model_validate(transaksi)
     }
 
+
 @router.get("/{transaksi_id}")
 def get_transaction(
     transaksi_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    transaksi = db.query(Transaksi).filter(Transaksi.id == transaksi_id).first()
+    transaksi = db.query(Transaksi).filter(
+        Transaksi.id == transaksi_id).first()
     if not transaksi:
-        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan.")
+        raise HTTPException(
+            status_code=404, detail="Transaksi tidak ditemukan.")
 
     return {
         "status": "success",
@@ -657,6 +638,8 @@ def get_transaction(
 #  NEW ENDPOINT: GET /transaction/{id}/receipt
 #  Return detail transaksi + info kontrak (hash, kode)
 # ══════════════════════════════════════════════════════════
+
+
 @router.get("/{transaksi_id}/receipt")  # ← NEW (entire endpoint)
 def get_receipt(
     transaksi_id: int,
@@ -664,15 +647,18 @@ def get_receipt(
     current_user: User = Depends(get_current_user)
 ):
     """Ambil detail struk transaksi beserta info kontrak digital."""
-    transaksi = db.query(Transaksi).filter(Transaksi.id == transaksi_id).first()
+    transaksi = db.query(Transaksi).filter(
+        Transaksi.id == transaksi_id).first()
     if not transaksi:
-        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan.")
+        raise HTTPException(
+            status_code=404, detail="Transaksi tidak ditemukan.")
 
     # Ambil nama kasir
     kasir = db.query(User).filter(User.id == transaksi.kasir_id).first()
 
     # Ambil kontrak terkait (jika sudah di-generate oleh background task)
-    kontrak = db.query(Kontrak).filter(Kontrak.transaksi_id == transaksi_id).first()
+    kontrak = db.query(Kontrak).filter(
+        Kontrak.transaksi_id == transaksi_id).first()
 
     return {
         "status": "success",
@@ -682,4 +668,4 @@ def get_receipt(
             kasir_username=kasir.username if kasir else None
         )
     }
->>>>>>> edsel/main
+

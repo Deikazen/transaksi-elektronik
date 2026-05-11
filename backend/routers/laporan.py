@@ -15,9 +15,9 @@ from datetime import datetime, timedelta
 from typing import Optional
 import csv, io
 
-from database import get_db
-from models import Transaksi, ItemTransaksi, Produk, User
-from core.deps import get_current_user
+from backend.database import get_db
+from backend.models import Transaksi, ItemTransaksi, Produk, User
+from backend.core.deps import get_current_user
 
 router = APIRouter(prefix="/laporan", tags=["Laporan"])
 
