@@ -1,21 +1,25 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the backend directory
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(backend_dir, '.env'))
 
-# Ganti dengan URL database Anda
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
+
 def init_db():
+    # Import semua model dulu sebelum create_all dipanggil
+    import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
 
-# Dependency untuk mendapatkan session database
+
 def get_db():
     db = SessionLocal()
     try:
@@ -31,19 +35,8 @@ class Produk(Base):
     nama_produk = Column(String(255), index=True)
     harga = Column(Integer)
     stok = Column(Integer)
-    
-    transaksi = relationship("Transaksi", back_populates="produk")
-
-class Transaksi(Base):
-    __tablename__ = "transaksi"
-    id = Column(Integer, primary_key=True, index=True)
-    produk_id = Column(Integer, ForeignKey("produk.id"))
-    jumlah = Column(Integer)
-    total_harga = Column(Integer)
-    
-    produk = relationship("Produk", back_populates="transaksi")
-
 
 
 if __name__ == "__main__":
-    init_db() 
+    init_db()
+    print("Database & semua tabel berhasil dibuat!")
