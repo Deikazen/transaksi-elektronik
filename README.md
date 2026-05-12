@@ -1,150 +1,129 @@
-# Transaksi Elektronik
+# 🚀 SecureTransact - Sistem Transaksi Elektronik & POS
 
-Aplikasi website untuk backend FastAPI dan frontend Vue 3 yang digunakan sebagai sistem transaksi elektronik.
+SecureTransact adalah aplikasi web komprehensif untuk mengelola **Sistem Transaksi Elektronik** dan **Point of Sale (POS)**. Aplikasi ini dirancang dengan pendekatan *Secure by Design*, memiliki berbagai modul lanjutan seperti pembuatan kontrak otomatis, integrasi Payment Gateway Midtrans, serta Computer Vision untuk mendeteksi keaslian fisik uang tunai.
 
-## Struktur Proyek
+Dibangun menggunakan arsitektur modern: **FastAPI (Python)** sebagai Backend dan **Vue 3 + Vite** sebagai Frontend.
 
-- `backend/` - kode backend Python dengan FastAPI, SQLAlchemy, dan integrasi database.
-- `frontend/` - aplikasi frontend Vue 3 yang dibangun dengan Vite.
-- `test.db` - database SQLite contoh (jika digunakan untuk testing).
+---
 
-## Teknologi
+## ✨ Fitur Utama
 
-- Backend: Python, FastAPI, SQLAlchemy, Uvicorn
-- Frontend: Vue 3, Vite
-- Database: MySQL / PostgreSQL / SQLite (tergantung konfigurasi `DATABASE_URL`)
+- 🛒 **Point of Sale (POS)** - Proses transaksi kasir yang cepat, kalkulasi pajak (PPN), dan diskon.
+- 📦 **Manajemen Inventaris** - Kelola stok barang dengan pencarian barcode.
+- 📜 **Generate Kontrak Digital** - Pembuatan otomatis PDF Kontrak dengan algoritma hashing `SHA-256` (*ReportLab*).
+- 💳 **Payment Gateway Midtrans** - Dukungan multi-payment: E-Wallet (Gopay, OVO, Dana), QRIS, Virtual Account, dan Kartu Kredit.
+- 👁️ **Computer Vision** - Modul AI berbasis OpenCV untuk memeriksa keaslian dan nominal uang kertas.
+- 🛡️ **Keamanan (Secure by Design)** - Autentikasi JWT, password hashing (*bcrypt*), Role-Based Access Control (RBAC), dan *input validation*.
+- 📊 **Pelaporan & Export** - Analytics penjualan dan fitur export data ke CSV.
 
-## Prasyarat
+---
 
-- Python 3.10+ atau versi yang kompatibel dengan dependensi `backend/requirements.txt`
-- Node.js 18+ dan npm/yarn untuk frontend
-- Database MySQL atau PostgreSQL yang tersedia jika menggunakan `DATABASE_URL` di `.env`
+## 🏗️ Struktur Proyek
 
-## Setup Backend
+- `/backend` - Logika *server-side* berbasis Python (FastAPI).
+- `/frontend` - Tampilan *client-side* berbasis Vue 3 (Vite).
 
-1. Buka terminal dan masuk ke folder backend:
+---
+
+## ⚙️ Persyaratan Sistem
+
+Pastikan environment Anda telah terinstal perangkat lunak berikut:
+- **Python 3.10+**
+- **Node.js 18+** & npm / yarn
+- **Database** (SQLite bawaan, MySQL, atau PostgreSQL)
+
+---
+
+## 🚀 Panduan Instalasi & Menjalankan Aplikasi
+
+### 1. Setup Backend
+
+Buka terminal baru dan masuk ke direktori backend:
 
 ```bash
 cd backend
 ```
 
-2. Buat virtual environment dan aktifkan:
-
+**Buat & Aktifkan Virtual Environment:**
 ```bash
+# Windows
 python -m venv venv
 venv\Scripts\activate
+
+# Mac/Linux
+python3 -m venv venv
+source venv/bin/activate
 ```
 
-3. Install dependensi:
-
+**Install Dependensi:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Buat file `.env` di dalam folder `backend/` dengan variabel berikut:
+**Konfigurasi Environment (`.env`):**
+Buat file `.env` di dalam folder `backend/` dan sesuaikan nilainya:
+```ini
+# Database Config (Gunakan sqlite untuk testing cepat)
+DATABASE_URL=sqlite:///./pos.db
+# Atau MySQL: DATABASE_URL=mysql+pymysql://user:pass@localhost/namadb
 
-```env
-DATABASE_URL=mysql+pymysql://username:password@localhost/nama_database
+# JWT Secret Key (Ubah dengan string acak yang aman)
+SECRET_KEY="GANTI_DENGAN_KUNCI_RAHASIA_ANDA"
+
+# Midtrans Configuration (Untuk Payment Gateway)
+MIDTRANS_SERVER_KEY="SB-Mid-server-xxxxxxxxxxxxxxxx"
+MIDTRANS_CLIENT_KEY="SB-Mid-client-xxxxxxxxxxxxxxxx"
+MIDTRANS_IS_PRODUCTION=false
 ```
 
-Atau untuk PostgreSQL:
-
-```env
-DATABASE_URL=postgresql://username:password@localhost/nama_database
-```
-
-5. Inisialisasi database (opsional, jika ada script migrasi / pembuatan tabel):
-
+**Jalankan Backend Server:**
 ```bash
-python database.py
+uvicorn main:app --reload --port 8000
 ```
+*Backend akan berjalan di: `http://localhost:8000` (Swagger UI: `http://localhost:8000/docs`)*
 
-6. Jalankan backend:
+---
 
-```bash
-uvicorn main:app --reload 
-```
+### 2. Setup Frontend
 
-Backend akan tersedia di:
-
-- `http://localhost:8000`
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## Setup Frontend
-
-1. Buka terminal dan masuk ke folder frontend:
+Buka terminal terpisah dan masuk ke direktori frontend:
 
 ```bash
 cd frontend
 ```
 
-2. Install dependensi frontend:
-
+**Install Dependensi Node Modules:**
 ```bash
 npm install
 ```
 
-3. Jalankan frontend development server:
-
+**Jalankan Frontend Server:**
 ```bash
 npm run dev
 ```
+*Frontend akan berjalan di: `http://localhost:5173`*
 
-Secara default, frontend akan berjalan di `http://localhost:5173`.
+---
 
-## Notes
+## 🔐 Akun Default (Login)
+Saat aplikasi pertama kali dijalankan, sistem secara otomatis men-generate akun berikut jika menggunakan `sqlite`:
+- **Admin**: `admin` / `admin123`
+- **Manajer**: `manajer1` / `manajer123`
+- **Kasir**: `kasir1` / `kasir123`
 
-- Backend sudah mengizinkan CORS untuk `http://localhost:5173` dan `http://localhost:5174`.
-- Pastikan backend dan frontend dijalankan secara terpisah di dua terminal berbeda.
-- Jika menggunakan database lokal, pastikan service database sudah berjalan dan kredensial di `.env` sesuai.
+---
 
-## Router & Fitur Utama Backend
+## 📚 Stack Teknologi
+**Backend:**
+- `FastAPI` (Web Framework)
+- `SQLAlchemy` (ORM)
+- `Pydantic` (Data Validation)
+- `ReportLab` (PDF Generator)
+- `OpenCV` (Computer Vision)
+- `Passlib` & `Jose` (Security)
 
-Backend menggabungkan beberapa router API:
-
-- `auth` - autentikasi dan otorisasi pengguna
-- `inventory` - manajemen inventaris
-- `transaction` - transaksi penjualan
-- `kontrak` - pembuatan dan manajemen kontrak
-- `io_system` - sistem input/output terkait file atau dokumen
-- `deteksi_uang` - modul deteksi uang palsu
-- `midtrans_payment` - integrasi pembayaran Midtrans
-- `laporan` - laporan sistem
-
-## Testing
-
-Sistem ini belum memiliki suite testing resmi, tetapi ada contoh skrip validasi sederhana di root:
-
-```bash
-python test_auth.py
-```
-
-Skrip ini mengecek model request untuk autentikasi di backend.
-
-## Deployment
-
-Untuk menjalankan backend di lingkungan produksi, jangan gunakan `--reload`.
-Gunakan perintah seperti berikut:
-
-```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-Jika ingin menjalankan frontend untuk produksi, build lalu preview:
-
-```bash
-cd frontend
-npm run build
-npm run preview
-```
-
-> Untuk produksi, disarankan menggunakan reverse proxy seperti Nginx dan database yang terkonfigurasi dengan benar.
-
-## Cara Menggunakan
-
-1. Jalankan backend dahulu.
-2. Jalankan frontend.
-3. Buka browser ke alamat frontend dan gunakan aplikasi.
-
-Jika Anda ingin bantuan lebih lanjut untuk konfigurasi `.env` atau database, beri tahu saya.
+**Frontend:**
+- `Vue 3` (Composition API)
+- `Vite` (Build Tool)
+- `Lucide-Vue-Next` (Icons)
+- `Vanilla CSS` (Custom Styling - *Glassmorphism & Dark Mode*)

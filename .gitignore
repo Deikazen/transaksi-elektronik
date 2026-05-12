@@ -235,3 +235,23 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# =========================
+# Project Specific (SecureTransact)
+# =========================
+
+# Database lokal SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Kontrak & Dokumen PDF yang digenerate otomatis
+backend/data/contracts/*.pdf
+!backend/data/contracts/.gitkeep
+
+# Uploads user / temp files
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# Laporan CSV / PDF yang ter-export
+*.csv
