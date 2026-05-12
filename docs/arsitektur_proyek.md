@@ -153,3 +153,50 @@ sequenceDiagram
 ```
 
 > Sistem sengaja mendesain *Pembuatan PDF Kontrak* sebagai **Background Task** (`BackgroundTasks` di FastAPI) agar API respon tidak melambat atau terblokir saat sistem sibuk me-render dokumen PDF.
+
+---
+
+## 4. Mengapa Arsitektur Ini Disebut "Secure by Design"?
+
+Proyek ini dibangun dari awal dengan mengintegrasikan konsep keamanan di setiap lapisannya (Defense in Depth). Berikut adalah implementasi *Secure by Design* pada arsitektur di atas:
+
+### A. Layered Security Model (Diagram)
+
+```mermaid
+flowchart TD
+    classDef secure fill:#1E293B,stroke:#3B82F6,stroke-width:2px,color:white;
+    classDef core fill:#0F172A,stroke:#10B981,stroke-width:2px,color:white;
+    classDef warning fill:#7F1D1D,stroke:#DC2626,stroke-width:2px,color:white;
+    
+    Client((User Frontend)) -->|"1. Bearer JWT"| Auth[Lapisan Autentikasi]:::secure
+    Auth -->|"2. Cek Role (RBAC)"| RBAC[Lapisan Otorisasi]:::secure
+    RBAC -->|"3. Filter Tipe Data"| Pydantic[Lapisan Validasi Pydantic]:::secure
+    Pydantic -->|"4. SQL Params"| ORM[Lapisan SQLAlchemy]:::core
+    ORM --> Database[(Database)]:::core
+    
+    Hacker((Malicious Payload)):::warning -.->|"Gagal Validasi"| Pydantic
+    Hacker -.->|"SQL Injection Blocked"| ORM
+    
+    Webhook((Webhook Pembayaran)) -->|"5. Cek SHA-512 Signature"| Signature[Validasi Signature Midtrans]:::secure
+    Signature --> ORM
+```
+
+### B. Prinsip Keamanan yang Diterapkan
+
+1. **Pemisahan Logika (Separation of Concerns)**
+   *Frontend* sama sekali tidak memiliki akses langsung ke *Database*. Akses hanya terjadi via REST API, yang mana mengurangi risiko jika *Frontend* disusupi.
+
+2. **Validasi Input Ketat (Pydantic & FastAPI)**
+   Semua data yang dikirim (*Payload JSON*) disaring dengan ketat secara tipe data dan strukturnya oleh `Pydantic`. Data yang aneh/berbahaya akan otomatis ditolak dengan kode `422 Unprocessable Entity` sebelum menyentuh logika bisnis. Ini menangkal ancaman seperti *SQL Injection* atau eksploitasi parameter.
+
+3. **Autentikasi Stateless (JWT) & Enkripsi Kredensial**
+   Password tidak pernah disimpan secara teks mentah (plaintext), melainkan di-hash menggunakan algoritma `Bcrypt` (library *Passlib*). Sesi dipertahankan menggunakan JWT yang tidak bisa dimanipulasi (*Tamper-proof*) karena memiliki signature dari server.
+
+4. **Role-Based Access Control (RBAC)**
+   Adanya aturan ketat: Kasir tidak bisa mendaftarkan user baru atau menghapus transaksi. Modul `/users` hanya bisa diakses oleh token dengan role `admin`. Hal ini menerapkan prinsip *Principle of Least Privilege*.
+
+5. **Integritas Dokumen Kriptografi (SHA-256 Kontrak)**
+   Sistem Kontrak Digital tidak hanya menghasilkan PDF, tetapi menciptakan jejak *Hash SHA-256* atas PDF tersebut ke database. Jika ada pihak yang memanipulasi file PDF di masa depan, Hash-nya tidak akan sama dengan yang dicatat oleh database. Ini memastikan hukum **Non-repudiation** (tidak bisa disangkal).
+
+6. **Keamanan Eksternal (Webhook Anti-Spoofing)**
+   Tidak sembarang orang bisa menebak *URL Webhook Midtrans* dan memalsukan pembayaran. Endpoint `/payment/notification` secara ketat memverifikasi `Signature Key` (menggunakan algoritma hashing `SHA-512` dengan menggabungkan ID Order, Harga, dan Server Key). Jika signature tidak cocok, request ditolak.
