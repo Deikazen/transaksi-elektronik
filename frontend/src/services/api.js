@@ -443,4 +443,69 @@ export const laporanApi = {
     const token = getAccessToken()
     return `${BASE_URL}/laporan/export/csv?periode=${periode}`
   },
-}
+}
+
+// ── Kontrak B2B API ────────────────────────────────────────────
+export const kontrakB2bApi = {
+  async getAll() {
+    const res = await apiFetch('/kontrak-b2b/')
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal ambil kontrak B2B.')
+    return data
+  },
+
+  async getById(id) {
+    const res = await apiFetch(`/kontrak-b2b/${id}`)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal ambil detail kontrak B2B.')
+    return data
+  },
+
+  async create(payload) {
+    const res = await apiFetch('/kontrak-b2b/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal buat kontrak B2B.')
+    return data
+  },
+
+  async update(id, payload) {
+    const res = await apiFetch(`/kontrak-b2b/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal update kontrak B2B.')
+    return data
+  },
+
+  async delete(id) {
+    const res = await apiFetch(`/kontrak-b2b/${id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal hapus kontrak B2B.')
+    return data
+  },
+
+  async generatePdf(id) {
+    const res = await apiFetch(`/kontrak-b2b/${id}/generate-pdf`, { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal generate PDF.')
+    return data
+  },
+
+  async verify(id) {
+    const res = await apiFetch(`/kontrak-b2b/${id}/verify`, { method: 'POST' })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || 'Gagal verifikasi.')
+    return data
+  },
+
+  getPdfUrl(id, download = false) {
+    const token = getAccessToken()
+    const dl = download ? '&download=1' : ''
+    return `${BASE_URL}/kontrak-b2b/${id}/pdf?token=${token}${dl}`
+  }
+}
+

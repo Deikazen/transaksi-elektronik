@@ -2,7 +2,7 @@ from sqlalchemy import text
 from backend.database import SessionLocal
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routers import inventory, transaction, auth, kontrak, io_system, deteksi_uang, midtrans_payment, laporan
+from backend.routers import inventory, transaction, auth, kontrak, io_system, deteksi_uang, midtrans_payment, laporan, kontrak_b2b
 
 app = FastAPI(
     title="SecureTransact API",
@@ -70,3 +70,4 @@ app.include_router(io_system.router)
 app.include_router(deteksi_uang.router)
 app.include_router(midtrans_payment.router)
 app.include_router(laporan.router)
+app.include_router(kontrak_b2b.router)

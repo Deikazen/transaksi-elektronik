@@ -448,6 +448,56 @@
         <!-- DETEKSI UANG PALSU -->
         <DeteksiUangPage v-if="currentPage === 'deteksi-uang'" />
 
+        <!-- KONTRAK B2B -->
+        <div v-if="currentPage === 'kontrak-b2b'" class="fade-in">
+          <div class="toolbar">
+            <button class="btn-primary" @click="showB2BForm = true" id="btn-buat-kontrak-b2b">
+              <component :is="icons.Plus" size="16" /> Buat Kontrak B2B
+            </button>
+            <span class="muted">{{ b2bContracts.length }} kontrak kerjasama</span>
+          </div>
+
+          <div v-if="b2bLoading" class="loading-state">
+            <component :is="icons.Loader" size="24" class="spin" /> Memuat kontrak B2B...
+          </div>
+          <div v-else-if="b2bContracts.length === 0" class="card" style="padding:48px; text-align:center;">
+            <div style="margin-bottom:16px; opacity:.4;">
+              <component :is="icons.Building2" size="48" />
+            </div>
+            <p style="color:var(--muted); font-size:15px;">Belum ada kontrak B2B. Klik <strong>Buat Kontrak B2B</strong> untuk memulai.</p>
+          </div>
+
+          <div v-else class="contract-list card" style="padding-top:20px;">
+            <div
+              v-for="kb in b2bContracts" :key="kb.id"
+              class="contract-row"
+              style="grid-template-columns: 44px 1fr 1fr auto auto;"
+            >
+              <div class="c-icon-wrap">
+                <component :is="icons.Building2" size="20" :style="{color: kb.status==='aktif'?'var(--c-emerald)':kb.status==='batal'?'var(--c-rose)':'var(--c-amber)'}" />
+              </div>
+              <div class="c-info">
+                <strong>{{ kb.judul_kontrak }}</strong>
+                <span class="muted">{{ kb.pihak_pertama_nama }} &rarr; {{ kb.pihak_kedua_nama }}</span>
+              </div>
+              <div class="c-hash">
+                <span class="muted">Nilai</span>
+                <code style="font-size:13px;">{{ kb.nilai_kontrak > 0 ? formatRp(kb.nilai_kontrak) : 'Kesepakatan' }}</code>
+              </div>
+              <div class="c-meta">
+                <span class="badge" :class="kb.status === 'aktif' ? 'lunas' : kb.status === 'batal' ? 'batal' : 'warn'">{{ kb.status.toUpperCase() }}</span>
+                <span class="muted">{{ new Date(kb.created_at).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) }}</span>
+              </div>
+              <div class="c-actions" style="display:flex; gap:6px; align-items:center;">
+                <button class="btn-icon" @click="openB2BDetail(kb)" title="Lihat Detail"><component :is="icons.FileText" size="15"/></button>
+                <button class="btn-icon" @click="openB2BPdf(kb, false)" title="Lihat PDF"><component :is="icons.FileSignature" size="15"/></button>
+                <button class="btn-icon" @click="openB2BPdf(kb, true)" title="Unduh PDF"><component :is="icons.Download" size="15"/></button>
+                <button class="btn-icon danger" @click="deleteB2BKontrak(kb)" title="Hapus"><component :is="icons.Trash2" size="15"/></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- I/O SYSTEM -->
         <IOSystemPage v-if="currentPage === 'io-system'" />
 
@@ -598,6 +648,147 @@
       </div>
     </div>
     </template>
+
+    <!-- MODAL BUAT KONTRAK B2B -->
+    <div class="modal-overlay" v-if="showB2BForm" @click.self="showB2BForm = false">
+      <div class="modal fade-in" style="max-width:680px; max-height:90vh; overflow-y:auto;">
+        <div class="modal-header" style="position:sticky; top:0; background:var(--surface1); z-index:2;">
+          <h3 style="display:flex;align-items:center;gap:10px;"><component :is="icons.Building2" size="20"/> Buat Kontrak B2B Baru</h3>
+          <button class="btn-icon" style="margin:0" @click="showB2BForm = false"><component :is="icons.X" size="20"/></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Judul Kontrak *</label>
+            <input v-model="b2bForm.judul_kontrak" type="text" placeholder="Perjanjian Kerjasama Pengadaan Barang..." />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nilai Kontrak (Rp)</label>
+              <input v-model.number="b2bForm.nilai_kontrak" type="number" min="0" placeholder="0 = Sesuai kesepakatan" />
+            </div>
+            <div class="form-group">
+              <label>Status Awal</label>
+              <select v-model="b2bForm.status_awal" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;font-size:14px;outline:none;">
+                <option value="draft">Draft</option>
+                <option value="aktif">Aktif</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tanggal Mulai</label>
+              <input v-model="b2bForm.tanggal_mulai" type="date" />
+            </div>
+            <div class="form-group">
+              <label>Tanggal Selesai</label>
+              <input v-model="b2bForm.tanggal_selesai" type="date" />
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px;">
+            <div>
+              <p style="font-weight:700;font-size:13px;color:var(--c-indigo);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px;">PIHAK PERTAMA</p>
+              <div class="form-group"><label>Nama Perusahaan *</label><input v-model="b2bForm.p1_nama" type="text" placeholder="PT SecureTransact Indonesia" /></div>
+              <div class="form-group"><label>Alamat</label><input v-model="b2bForm.p1_alamat" type="text" placeholder="Jl. Anggrek No.1, Bandung" /></div>
+              <div class="form-group"><label>NPWP</label><input v-model="b2bForm.p1_npwp" type="text" placeholder="00.000.000.0-000.000" /></div>
+              <div class="form-group"><label>Person In Charge (PIC)</label><input v-model="b2bForm.p1_pic" type="text" placeholder="Budi Santoso, Direktur" /></div>
+            </div>
+            <div>
+              <p style="font-weight:700;font-size:13px;color:var(--c-emerald);margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:8px;">PIHAK KEDUA</p>
+              <div class="form-group"><label>Nama Perusahaan *</label><input v-model="b2bForm.p2_nama" type="text" placeholder="PT Mitra Jaya Abadi" /></div>
+              <div class="form-group"><label>Alamat</label><input v-model="b2bForm.p2_alamat" type="text" placeholder="Jl. Merdeka No.10, Jakarta" /></div>
+              <div class="form-group"><label>NPWP</label><input v-model="b2bForm.p2_npwp" type="text" placeholder="00.000.000.0-000.000" /></div>
+              <div class="form-group"><label>Person In Charge (PIC)</label><input v-model="b2bForm.p2_pic" type="text" placeholder="Siti Aminah, Direktur" /></div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:8px;">
+            <label>Ruang Lingkup / Deskripsi Kontrak</label>
+            <textarea v-model="b2bForm.deskripsi" rows="4"
+              placeholder="Jelaskan ruang lingkup kerjasama, deliverable, dan ketentuan khusus lainnya..."
+              style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;resize:vertical;font-family:'Inter',sans-serif;outline:none;"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="position:sticky;bottom:0;background:var(--surface2);">
+          <button class="btn-secondary" @click="showB2BForm = false">Batal</button>
+          <button class="btn-primary" @click="submitB2BKontrak" :disabled="b2bSubmitting" id="btn-submit-b2b">
+            <component :is="b2bSubmitting ? icons.Loader : icons.FileSignature" size="15" :class="{spin: b2bSubmitting}"/>
+            {{ b2bSubmitting ? 'Menyimpan...' : 'Buat & Generate PDF' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DETAIL KONTRAK B2B -->
+    <div class="modal-overlay" v-if="b2bDetailModal.show" @click.self="b2bDetailModal.show = false">
+      <div class="modal fade-in" style="max-width:600px;">
+        <div class="modal-header">
+          <h3 style="display:flex;align-items:center;gap:10px;"><component :is="icons.Building2" size="18"/> {{ b2bDetailModal.data?.kode }}</h3>
+          <button class="btn-icon" style="margin:0" @click="b2bDetailModal.show = false"><component :is="icons.X" size="20"/></button>
+        </div>
+        <div class="modal-body" v-if="b2bDetailModal.data">
+          <h4 style="font-size:16px;margin-bottom:16px;color:var(--text)">{{ b2bDetailModal.data.judul_kontrak }}</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="background:var(--surface2);padding:14px;border-radius:10px;">
+              <p style="font-size:11px;font-weight:700;color:var(--c-indigo);margin-bottom:6px;">PIHAK PERTAMA</p>
+              <p style="font-weight:600;margin-bottom:2px;">{{ b2bDetailModal.data.pihak_pertama_nama }}</p>
+              <p class="muted" style="font-size:12px;">{{ b2bDetailModal.data.pihak_pertama_alamat || '—' }}</p>
+              <p class="muted" style="font-size:12px;">NPWP: {{ b2bDetailModal.data.pihak_pertama_npwp || '—' }}</p>
+              <p class="muted" style="font-size:12px;">PIC: {{ b2bDetailModal.data.pihak_pertama_pic || '—' }}</p>
+            </div>
+            <div style="background:var(--surface2);padding:14px;border-radius:10px;">
+              <p style="font-size:11px;font-weight:700;color:var(--c-emerald);margin-bottom:6px;">PIHAK KEDUA</p>
+              <p style="font-weight:600;margin-bottom:2px;">{{ b2bDetailModal.data.pihak_kedua_nama }}</p>
+              <p class="muted" style="font-size:12px;">{{ b2bDetailModal.data.pihak_kedua_alamat || '—' }}</p>
+              <p class="muted" style="font-size:12px;">NPWP: {{ b2bDetailModal.data.pihak_kedua_npwp || '—' }}</p>
+              <p class="muted" style="font-size:12px;">PIC: {{ b2bDetailModal.data.pihak_kedua_pic || '—' }}</p>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <p class="muted" style="font-size:12px;">Nilai Kontrak</p>
+              <p style="font-weight:700;">{{ b2bDetailModal.data.nilai_kontrak > 0 ? formatRp(b2bDetailModal.data.nilai_kontrak) : 'Sesuai Kesepakatan' }}</p>
+            </div>
+            <div>
+              <p class="muted" style="font-size:12px;">Status</p>
+              <span class="badge" :class="b2bDetailModal.data.status === 'aktif' ? 'lunas' : 'warn'">{{ b2bDetailModal.data.status?.toUpperCase() }}</span>
+            </div>
+          </div>
+          <div v-if="b2bDetailModal.data.deskripsi" style="background:var(--surface2);padding:14px;border-radius:10px;margin-bottom:16px;">
+            <p style="font-size:12px;font-weight:600;margin-bottom:6px;">Ruang Lingkup:</p>
+            <p style="font-size:13px;color:var(--muted);line-height:1.6;">{{ b2bDetailModal.data.deskripsi }}</p>
+          </div>
+          <div style="background:var(--surface2);padding:12px;border-radius:10px;display:flex;align-items:flex-start;gap:8px;">
+            <component :is="icons.Hash" size="14" style="color:var(--muted);flex-shrink:0;margin-top:2px;"/>
+            <div>
+              <p style="font-size:11px;color:var(--muted);">SHA-256 Hash</p>
+              <code style="font-size:11px;word-break:break-all;">{{ b2bDetailModal.data.hash_doc || '(belum digenerate)' }}</code>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:8px;">Update Status Kontrak</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button v-for="s in ['draft','aktif','selesai','batal']" :key="s"
+                class="btn-secondary" style="font-size:12px;padding:6px 14px;"
+                :style="b2bDetailModal.data.status===s?'opacity:.4;cursor:not-allowed':''"
+                :disabled="b2bDetailModal.data.status===s"
+                @click="updateB2BStatus(b2bDetailModal.data.id, s)">
+                {{ s.charAt(0).toUpperCase() + s.slice(1) }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" @click="b2bDetailModal.show = false">Tutup</button>
+          <button class="btn-primary" @click="openB2BPdf(b2bDetailModal.data, false)">
+            <component :is="icons.FileSignature" size="14"/> Lihat PDF
+          </button>
+          <button class="btn-primary" style="background:var(--c-emerald);" @click="openB2BPdf(b2bDetailModal.data, true)">
+            <component :is="icons.Download" size="14"/> Unduh PDF
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -608,14 +799,15 @@ import {
   ChevronLeft, ChevronRight, Server, ServerOff, TrendingUp, ArrowRight,
   CheckCircle, AlertOctagon, Plus, Loader, AlertTriangle, Trash2, Package,
   ShoppingBag, Minus, FileText, ShieldCheck, X, Code, AlertCircle, Lock, ChevronDown,
-  ScanLine, Activity, CreditCard, LogOut, Users, BarChart3, Edit2, Tag, Download
+  ScanLine, Activity, CreditCard, LogOut, Users, BarChart3, Edit2, Tag, Download,
+  Building2, Handshake, Calendar, Hash, BadgeCheck, FileSignature
 } from 'lucide-vue-next'
 import DeteksiUangPage from './components/DeteksiUangPage.vue'
 import IOSystemPage from './components/IOSystemPage.vue'
 import MidtransPaymentPage from './components/MidtransPaymentPage.vue'
 import AdminPanelPage from './components/AdminPanelPage.vue'
 import LaporanPage from './components/LaporanPage.vue'
-import { inventoryApi, transactionApi, kontrakApi, paymentApi } from './services/api.js'
+import { inventoryApi, transactionApi, kontrakApi, paymentApi, kontrakB2bApi } from './services/api.js'
 
 const icons = {
   LayoutDashboard: markRaw(LayoutDashboard), Box: markRaw(Box), ShoppingCart: markRaw(ShoppingCart),
@@ -628,7 +820,9 @@ const icons = {
   Minus: markRaw(Minus), FileText: markRaw(FileText), ShieldCheck: markRaw(ShieldCheck),
   X: markRaw(X), Code: markRaw(Code), AlertCircle: markRaw(AlertCircle), Lock: markRaw(Lock), ChevronDown: markRaw(ChevronDown),
   ScanLine: markRaw(ScanLine), Activity: markRaw(Activity), CreditCard: markRaw(CreditCard),
-  Users: markRaw(Users), BarChart3: markRaw(BarChart3), Edit2: markRaw(Edit2), Tag: markRaw(Tag), Download: markRaw(Download)
+  Users: markRaw(Users), BarChart3: markRaw(BarChart3), Edit2: markRaw(Edit2), Tag: markRaw(Tag), Download: markRaw(Download),
+  Building2: markRaw(Building2), Handshake: markRaw(Handshake), Calendar: markRaw(Calendar),
+  Hash: markRaw(Hash), BadgeCheck: markRaw(BadgeCheck), FileSignature: markRaw(FileSignature)
 }
 
 const navItemsMain = [
@@ -641,6 +835,7 @@ const navItemsMain = [
 
 const navItemsAdvanced = [
   { id: 'deteksi-uang', label: 'Deteksi Uang', icon: icons.ScanLine },
+  { id: 'kontrak-b2b', label: 'Kontrak B2B', icon: icons.Building2 },
   { id: 'io-system', label: 'I/O System', icon: icons.Activity },
   { id: 'payment', label: 'Monitoring Bayar', icon: icons.CreditCard },
   { id: 'laporan', label: 'Laporan', icon: icons.BarChart3 },
@@ -673,7 +868,8 @@ const permittedNavAdvanced = computed(() => {
   if (!authState.user) return []
   const role = authState.user.role
   if (role === 'admin') return navItemsAdvanced
-  if (role === 'manajer') return navItemsAdvanced.filter(i => ['payment','io-system','laporan'].includes(i.id))
+  if (role === 'manajer') return navItemsAdvanced.filter(i => ['payment','io-system','laporan','kontrak-b2b'].includes(i.id))
+  if (role === 'kasir') return navItemsAdvanced.filter(i => ['kontrak-b2b'].includes(i.id))
   return []
 })
 
@@ -744,6 +940,7 @@ const pagesMeta = {
   pos: { title: 'Point of Sale', subtitle: 'Proses transaksi & checkout' },
   transaksi: { title: 'Riwayat Transaksi', subtitle: 'Log semua transaksi tercatat' },
   kontrak: { title: 'Kontrak Digital', subtitle: 'Dokumen kontrak terverifikasi kriptografi' },
+  'kontrak-b2b': { title: 'Kontrak B2B', subtitle: 'Kontrak elektronik kerjasama antar perusahaan' },
   'deteksi-uang': { title: 'Deteksi Uang Palsu', subtitle: 'Analisis keaslian uang via kamera — Computer Vision' },
   'io-system': { title: 'I/O System Transaction', subtitle: 'Monitor alur input/output data transaksi' },
   payment: { title: 'Payment Gateway', subtitle: 'Pembayaran multi-channel via Midtrans' },
@@ -949,6 +1146,102 @@ async function fetchContracts() {
   } catch (e) { console.error('Fetch kontrak error', e) }
 }
 
+// ── Kontrak B2B state & functions ─────────────────────────
+const b2bContracts = ref([])
+const b2bLoading = ref(false)
+const showB2BForm = ref(false)
+const b2bSubmitting = ref(false)
+const b2bDetailModal = reactive({ show: false, data: null })
+
+const b2bForm = reactive({
+  judul_kontrak: '', nilai_kontrak: 0, deskripsi: '',
+  tanggal_mulai: '', tanggal_selesai: '', status_awal: 'draft',
+  p1_nama: '', p1_alamat: '', p1_npwp: '', p1_pic: '',
+  p2_nama: '', p2_alamat: '', p2_npwp: '', p2_pic: ''
+})
+
+async function fetchB2BContracts() {
+  b2bLoading.value = true
+  try {
+    const res = await kontrakB2bApi.getAll()
+    b2bContracts.value = res.data || []
+  } catch (e) { console.error('Fetch B2B kontrak error', e) }
+  finally { b2bLoading.value = false }
+}
+
+async function submitB2BKontrak() {
+  if (!b2bForm.judul_kontrak.trim() || !b2bForm.p1_nama.trim() || !b2bForm.p2_nama.trim()) {
+    showToast('Judul kontrak, nama Pihak Pertama, dan Pihak Kedua wajib diisi!', 'error'); return
+  }
+  b2bSubmitting.value = true
+  try {
+    const payload = {
+      judul_kontrak: b2bForm.judul_kontrak,
+      nilai_kontrak: b2bForm.nilai_kontrak,
+      deskripsi: b2bForm.deskripsi || null,
+      tanggal_mulai: b2bForm.tanggal_mulai ? new Date(b2bForm.tanggal_mulai).toISOString() : null,
+      tanggal_selesai: b2bForm.tanggal_selesai ? new Date(b2bForm.tanggal_selesai).toISOString() : null,
+      pihak_pertama: { nama: b2bForm.p1_nama, alamat: b2bForm.p1_alamat || null, npwp: b2bForm.p1_npwp || null, pic: b2bForm.p1_pic || null },
+      pihak_kedua:   { nama: b2bForm.p2_nama, alamat: b2bForm.p2_alamat || null, npwp: b2bForm.p2_npwp || null, pic: b2bForm.p2_pic || null }
+    }
+    const res = await kontrakB2bApi.create(payload)
+    const newKontrak = res.data
+    // Generate PDF langsung
+    try { await kontrakB2bApi.generatePdf(newKontrak.id) } catch(e) { console.warn('PDF gen warn:', e) }
+    // Update status jika bukan draft
+    if (b2bForm.status_awal !== 'draft') {
+      try { await kontrakB2bApi.update(newKontrak.id, { status: b2bForm.status_awal }) } catch(e) {}
+    }
+    await fetchB2BContracts()
+    showB2BForm.value = false
+    // Reset form
+    Object.assign(b2bForm, { judul_kontrak:'', nilai_kontrak:0, deskripsi:'', tanggal_mulai:'', tanggal_selesai:'', status_awal:'draft', p1_nama:'', p1_alamat:'', p1_npwp:'', p1_pic:'', p2_nama:'', p2_alamat:'', p2_npwp:'', p2_pic:'' })
+    showToast(`Kontrak B2B '${newKontrak.kode}' berhasil dibuat & PDF digenerate!`, 'success')
+  } catch (err) {
+    showToast(err.message, 'error')
+  } finally { b2bSubmitting.value = false }
+}
+
+async function updateB2BStatus(id, newStatus) {
+  try {
+    const res = await kontrakB2bApi.update(id, { status: newStatus })
+    const idx = b2bContracts.value.findIndex(k => k.id === id)
+    if (idx >= 0) b2bContracts.value[idx] = res.data
+    if (b2bDetailModal.data && b2bDetailModal.data.id === id) b2bDetailModal.data = res.data
+    showToast(`Status diperbarui menjadi '${newStatus}'`, 'success')
+  } catch (err) { showToast(err.message, 'error') }
+}
+
+function openB2BDetail(kb) {
+  b2bDetailModal.data = kb
+  b2bDetailModal.show = true
+}
+
+async function openB2BPdf(kb, download = false) {
+  if (!kb) return
+  showToast('Membuka PDF...', 'success')
+  try {
+    // Pastikan PDF ada, generate dulu jika perlu
+    await kontrakB2bApi.generatePdf(kb.id)
+  } catch(e) { /* mungkin sudah ada */ }
+  const url = kontrakB2bApi.getPdfUrl(kb.id, download)
+  window.open(url, '_blank')
+}
+
+function deleteB2BKontrak(kb) {
+  showConfirm(
+    'Hapus Kontrak B2B',
+    `Apakah Anda yakin ingin menghapus kontrak '${kb.kode} - ${kb.judul_kontrak}'? Tindakan ini tidak dapat dibatalkan.`,
+    async () => {
+      try {
+        await kontrakB2bApi.delete(kb.id)
+        b2bContracts.value = b2bContracts.value.filter(k => k.id !== kb.id)
+        showToast(`Kontrak B2B '${kb.kode}' dihapus.`, 'success')
+      } catch (err) { showToast(err.message, 'error') }
+    }
+  )
+}
+
 async function finalizeCheckout(tx) {
   await fetchTransactions()
   await fetchContracts()
@@ -1081,6 +1374,7 @@ async function handleLogin() {
     fetchInventory()
     fetchTransactions()
     fetchContracts()
+    fetchB2BContracts()
     fetchSystemStatus()
   } catch (err) {
     showToast(err.message, 'error')

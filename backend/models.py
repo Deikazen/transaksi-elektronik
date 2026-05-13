@@ -141,6 +141,45 @@ class IOLog(Base):
     user = relationship("User")
 
 
+# ============================================================
+# Model Kontrak B2B (Kontrak antar perusahaan)
+# ============================================================
+
+
+class KontrakB2B(Base):
+    __tablename__ = "kontrak_b2b"
+
+    id = Column(Integer, primary_key=True, index=True)
+    kode = Column(String(20), unique=True, index=True)   # misal B2B001
+
+    # Pihak Pertama (perusahaan penerbit / vendor)
+    pihak_pertama_nama = Column(String(255), nullable=False)
+    pihak_pertama_alamat = Column(Text, nullable=True)
+    pihak_pertama_npwp = Column(String(50), nullable=True)
+    pihak_pertama_pic = Column(String(255), nullable=True)  # Person In Charge
+
+    # Pihak Kedua (perusahaan mitra / klien bisnis)
+    pihak_kedua_nama = Column(String(255), nullable=False)
+    pihak_kedua_alamat = Column(Text, nullable=True)
+    pihak_kedua_npwp = Column(String(50), nullable=True)
+    pihak_kedua_pic = Column(String(255), nullable=True)
+
+    # Detail kontrak
+    judul_kontrak = Column(String(500), nullable=False)
+    deskripsi = Column(Text, nullable=True)
+    nilai_kontrak = Column(Integer, default=0)  # nilai dalam rupiah
+    tanggal_mulai = Column(DateTime(timezone=True), nullable=True)
+    tanggal_selesai = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(50), default="draft")  # draft, aktif, selesai, batal
+
+    # Keamanan & metadata
+    hash_doc = Column(String(255), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    created_by_user = relationship("User", foreign_keys=[created_by])
+
+
 # Di bagian paling bawah models.py
 print("Models.py berhasil dimuat!")
 print(

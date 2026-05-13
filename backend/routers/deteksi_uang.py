@@ -10,6 +10,10 @@ import numpy as np
 import io
 import time
 import math
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import cv2
@@ -229,32 +233,8 @@ def get_verdict(score: int) -> dict:
 @router.post("/analisis")
 async def analisis_uang(file: UploadFile = File(...)):
     """
-    Analisis gambar uang untuk mendeteksi keaslian.
-    Terima file gambar (JPEG/PNG) dan kembalikan hasil analisis visual.
+    Analisis gambar uang untuk mendeteksi keaslian menggunakan OpenCV.
     """
-    if not CV2_AVAILABLE:
-        # Fallback jika OpenCV belum terinstall — berikan demo hasil
-        import random
-        demo_score = random.randint(45, 92)
-        verdict = get_verdict(demo_score)
-        return JSONResponse({
-            "status": "demo",
-            "pesan_sistem": "OpenCV tidak terinstall. Menampilkan hasil simulasi. Install dengan: pip install opencv-python",
-            "skor_keseluruhan": demo_score,
-            "verdict": verdict,
-            "indikator": {
-                "analisis_warna": {"skor": random.randint(50, 95), "status": "Baik", "detail": "Saturasi warna normal (simulasi)"},
-                "ketajaman_cetak": {"skor": random.randint(50, 90), "status": "Cukup Tajam", "detail": "Detail cetak terdeteksi (simulasi)"},
-                "tekstur_cetak": {"skor": random.randint(55, 85), "status": "Tekstur Konsisten", "detail": "Pola cetak halus (simulasi)"},
-                "proporsi_ukuran": {"skor": 85, "status": "Proporsi Normal", "detail": "Rasio aspek normal (simulasi)"},
-                "eksposur_cahaya": {"skor": random.randint(60, 90), "status": "Eksposur Baik", "detail": "Distribusi cahaya merata (simulasi)"},
-                "deteksi_pola": {"skor": random.randint(55, 85), "status": "Tepi Normal", "detail": "Pola cetak terdeteksi (simulasi)"},
-            },
-            "resolusi": {"lebar": 1920, "tinggi": 1080, "piksel": 2073600},
-            "waktu_analisis_ms": random.randint(80, 250),
-        })
-
-    # Validate file type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File harus berupa gambar (JPEG/PNG)")
 
@@ -267,20 +247,25 @@ async def analisis_uang(file: UploadFile = File(...)):
     start_time = time.time()
 
     try:
+        if not CV2_AVAILABLE:
+            raise ValueError("OpenCV tidak tersedia. Fitur deteksi uang tidak dapat digunakan.")
+
         nparr = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
         if img is None:
             raise ValueError("Tidak dapat membaca gambar")
 
-        # Resize jika terlalu besar (untuk performa)
-        max_dim = 1200
         h, w = img.shape[:2]
+        
+        max_dim = 1200
         if max(h, w) > max_dim:
             scale = max_dim / max(h, w)
             img = cv2.resize(img, (int(w * scale), int(h * scale)))
 
         analysis = analyze_money_image(img)
         elapsed_ms = int((time.time() - start_time) * 1000)
+
         verdict = get_verdict(analysis["skor_keseluruhan"])
 
         return JSONResponse({
@@ -295,6 +280,7 @@ async def analisis_uang(file: UploadFile = File(...)):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
+        logger.error(f"Error deteksi uang: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Gagal menganalisis gambar: {str(e)}")
 
 
@@ -303,7 +289,7 @@ def status_deteksi():
     """Cek status ketersediaan fitur deteksi uang."""
     return {
         "cv2_available": CV2_AVAILABLE,
-        "fitur": "Deteksi Uang Palsu via Kamera",
+        "fitur": "Deteksi Uang Palsu via Kamera (OpenCV)",
         "versi": "1.0.0",
         "metode": [
             "Analisis Warna & Saturasi (HSV)",

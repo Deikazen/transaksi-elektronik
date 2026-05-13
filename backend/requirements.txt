@@ -26,6 +26,8 @@ reportlab==4.2.5
 # Computer Vision (Modul Deteksi Uang)
 opencv-python==4.10.0.84
 numpy
+tensorflow>=2.15.0
+Pillow>=10.2.0
 
 # HTTP Client (Payment Gateway Midtrans & Webhooks)
 httpx==0.28.1
