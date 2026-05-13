@@ -1,0 +1,33 @@
+# Web Framework
+fastapi==0.135.1
+uvicorn==0.41.0
+python-multipart==0.0.22
+websockets==16.0
+
+# Database & ORM
+SQLAlchemy==2.0.48
+PyMySQL==1.1.2
+psycopg2-binary==2.9.11
+
+# Auth & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+
+# Validation & Config
+pydantic==2.12.5
+pydantic[email]==2.12.5
+pydantic-settings==2.13.1
+python-dotenv==1.2.2
+
+# PDF Generation (Modul Kontrak)
+reportlab==4.2.5
+
+# Computer Vision (Modul Deteksi Uang)
+opencv-python==4.10.0.84
+numpy
+tensorflow>=2.15.0
+Pillow>=10.2.0
+
+# HTTP Client (Payment Gateway Midtrans & Webhooks)
+httpx==0.28.1
