@@ -36,14 +36,6 @@ Pastikan environment Anda telah terinstal perangkat lunak berikut:
 
 ## 🚀 Panduan Instalasi & Menjalankan Aplikasi
 
-### 1. Setup Backend
-
-Buka terminal baru dan masuk ke direktori backend:
-
-```bash
-cd backend
-```
-
 **Buat & Aktifkan Virtual Environment:**
 ```bash
 # Windows
